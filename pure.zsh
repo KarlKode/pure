@@ -118,12 +118,12 @@ prompt_pure_preprompt_render() {
 	# construct preprompt, beginning with path
 	local preprompt=$prompt_pure_username
 	preprompt+="%F{blue}%~%f"
-        
+
 	# git info
-        if [[ -n ${vcs_info_msg_0_} ]]; then
-	    preprompt+="%F{238} (%f%F{$git_color}${vcs_info_msg_0_// /}%f%F{238})%f${prompt_pure_git_dirty}"
-	    # git pull/push arrows
-	    preprompt+="%F{green}${prompt_pure_git_arrows}%f"
+  if [[ -n ${vcs_info_msg_0_} ]]; then
+    preprompt+="%F{238} (%f%F{$git_color}${vcs_info_msg_0_// /}%f%F{238})%f${prompt_pure_git_dirty}"
+    # git pull/push arrows
+	  preprompt+="%F{green}${prompt_pure_git_arrows}%f"
 	fi
 
 	# execution time
@@ -301,6 +301,11 @@ prompt_pure_async_callback() {
 	esac
 }
 
+vi_mode_prompt_info() {
+  echo "$KEYMAP - ${${KEYMAP/vicmd/$MODE_INDICATOR}/(main|viins)/}" >> /tmp/aaa
+  echo "${${KEYMAP/vicmd/$MODE_INDICATOR}/(main|viins)/}"
+}
+
 prompt_pure_setup() {
 	# prevent percentage showing up
 	# if output doesn't end with a newline
@@ -308,39 +313,87 @@ prompt_pure_setup() {
 
 	prompt_opts=(subst percent)
 
-	zmodload zsh/datetime
-	zmodload zsh/zle
-	autoload -Uz add-zsh-hook
-	autoload -Uz vcs_info
-	autoload -Uz async && async
+  zmodload zsh/datetime
+  zmodload zsh/zle
+  autoload -Uz add-zsh-hook
+  autoload -Uz vcs_info
+  autoload -Uz async && async
 
-	add-zsh-hook precmd prompt_pure_precmd
-	add-zsh-hook preexec prompt_pure_preexec
+  add-zsh-hook precmd prompt_pure_precmd
+  add-zsh-hook preexec prompt_pure_preexec
 
-	zstyle ':vcs_info:*' enable git
-	zstyle ':vcs_info:*' use-simple true
-	# only export two msg variables from vcs_info
-	zstyle ':vcs_info:*' max-exports 2
-	# vcs_info_msg_0_ = ' %b' (for branch)
-	# vcs_info_msg_1_ = 'x%R' git top level (%R), x-prefix prevents creation of a named path (AUTO_NAME_DIRS)
-	zstyle ':vcs_info:git*' formats ' %b' 'x%R'
-	zstyle ':vcs_info:git*' actionformats ' %b|%a' 'x%R'
+  zstyle ':vcs_info:*' enable git
+  zstyle ':vcs_info:*' use-simple true
+  # only export two msg variables from vcs_info
+  zstyle ':vcs_info:*' max-exports 2
+  # vcs_info_msg_0_ = ' %b' (for branch)
+  # vcs_info_msg_1_ = 'x%R' git top level (%R), x-prefix prevents creation of a named path (AUTO_NAME_DIRS)
+  zstyle ':vcs_info:git*' formats ' %b' 'x%R'
+  zstyle ':vcs_info:git*' actionformats ' %b|%a' 'x%R'
 
-	# if the user has not registered a custom zle widget for clear-screen,
-	# override the builtin one so that the preprompt is displayed correctly when
-	# ^L is issued.
-	if [[ $widgets[clear-screen] == 'builtin' ]]; then
-		zle -N clear-screen prompt_pure_clear_screen
-	fi
+  # RPROMPT stolen from (https://superuser.com/questions/151803/how-do-i-customize-zshs-vim-mode)
+  #vim_ins_mode="[INS]"
+  #vim_cmd_mode="[CMD]"
+  #vim_mode=$vim_ins_mode
 
-	# show username@host if logged in through SSH
-	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{238}[%f$fg_bold[red]%n@%m%f%b%F{238}]%f '
+  #zle-keymap-select() {
+  #  vim_mode="${${KEYMAP/vicmd/${vim_cmd_mode}}/(main|viins)/${vim_ins_mode}}"
+  #  #zle reset-prompt
+  #  zle 
+  #}
+  #zle -N zle-keymap-select
 
-	# show username@host if root, with username in white
-	[[ $UID -eq 0 ]] && prompt_pure_username='%F{white}%n%f%F{238}@%m%f '
+  #zle-line-finish() {
+  #  echo "line done"
+  #  vim_mode=$vim_ins_mode
+  #}
+  #zle -N zle-line-finish
 
-	# prompt turns red if the previous command didn't exit with 0
-	PROMPT="%(?.%F{45}.%F{red})${PURE_PROMPT_SYMBOL:-❯}%f "
+  function zle-keymap-select zle-line-init zle-line-finish {
+    # The terminal must be in application mode when ZLE is active for $terminfo
+    # values to be valid.
+    if (( ${+terminfo[smkx]} )); then
+      printf '%s' ${terminfo[smkx]}
+    fi
+    if (( ${+terminfo[rmkx]} )); then
+      printf '%s' ${terminfo[rmkx]}
+    fi
+
+    zle reset-prompt
+    zle -R
+  }
+
+  # Ensure that the prompt is redrawn when the terminal size changes.
+  TRAPWINCH() {
+    zle && { zle reset-prompt; zle -R }
+  }
+
+  zle -N zle-line-init
+  zle -N zle-line-finish
+  zle -N zle-keymap-select
+  zle -N edit-command-line
+
+  # if mode indicator wasn't setup by theme, define default
+  if [[ "$MODE_INDICATOR" == "" ]]; then
+    MODE_INDICATOR="%{$fg_bold[red]%}<%{$fg[red]%}<<%{$reset_color%}"
+  fi
+
+  # if the user has not registered a custom zle widget for clear-screen,
+  # override the builtin one so that the preprompt is displayed correctly when
+  # ^L is issued.
+  if [[ $widgets[clear-screen] == 'builtin' ]]; then
+    zle -N clear-screen prompt_pure_clear_screen
+  fi
+
+  # show username@host if logged in through SSH
+  [[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{238}[%f$fg_bold[red]%n@%m%f%b%F{238}]%f '
+
+  # show username@host if root, with username in white
+  [[ $UID -eq 0 ]] && prompt_pure_username='%F{white}%n%f%F{238}@%m%f '
+
+  # prompt turns red if the previous command didn't exit with 0
+  PROMPT="%(?.%F{green}.%F{red})${PURE_PROMPT_SYMBOL:-❯}%f "
+  RPROMPT=">$(vi_mode_prompt_info)"
 }
 
 prompt_pure_setup "$@"
