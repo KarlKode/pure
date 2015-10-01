@@ -303,11 +303,11 @@ prompt_pure_async_callback() {
 
 prompt_pure_rprompt() {
   if [[ "$VIRTUAL_ENV" != "" ]]; then
-    print -n "%F{238}[%f%F{yellow}V%f%F{238}:%f%F{blue}`basename "$VIRTUAL_ENV"`%f%F{238}]%f% "
+    print -n "%F{238}[%f%F{yellow}V%f%F{238}:%f%F{blue}`basename "$VIRTUAL_ENV"`%f%F{238}]%f "
   fi
   if [[ "$SSH_CONNECTION" != "" ]]; then
     if [[ "$VIRTUAL_ENV" != "" ]]; then
-      print -n "%{white}|%f "
+      print -n "%F{white}|%f "
     fi
     print -n "%F{blue}%n%f%F{green}@%f%F{blue}%m%f "
   fi
@@ -374,11 +374,8 @@ prompt_pure_setup() {
     zle -N clear-screen prompt_pure_clear_screen
   fi
 
-  # show username@host if logged in through SSH
-  [[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{238}[%f$fg_bold[red]%n@%m%f%b%F{238}]%f '
-
   # show username@host if root, with username in white
-  [[ $UID -eq 0 ]] && PURE_PROMPT_SYMBOL="#" #prompt_pure_username='%F{white}%n%f%F{238}@%m%f⚡ '
+  [[ $UID -eq 0 ]] && PURE_PROMPT_SYMBOL="#"
 
   # prompt turns red if the previous command didn't exit with 0
   PROMPT="%(?.%F{green}.%F{red})${PURE_PROMPT_SYMBOL:-❯}%f "
